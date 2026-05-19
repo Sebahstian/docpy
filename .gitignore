@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Streamlit secrets (CRITICAL: never commit API keys)
+.streamlit/secrets.toml
+
+# ChromaDB local storage
+chroma_db/
+*.sqlite3
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
