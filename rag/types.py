@@ -40,13 +40,45 @@ class Symbol:
 
 
 @dataclass
+class Chunk:
+    """One embeddable unit of text derived from a Symbol.
+
+    A Chunk is what actually gets stored in the vector DB: a stable id, the
+    text we embed (and later show to the LLM), and flat metadata we use to
+    rebuild a Citation after retrieval.
+
+    Attributes:
+        id: Stable unique id, equal to Symbol.full_id
+        text: The formatted, embeddable document text
+        qualname: Carried through for Citation display, e.g. "DataFrame.merge"
+        module: Carried through for Citation display
+        kind: One of "function", "class", "method"
+    """
+
+    id: str
+    text: str
+    qualname: str
+    module: str
+    kind: str
+
+    def to_metadata(self) -> dict[str, str]:
+        """Flat metadata dict for ChromaDB (no None / nested values allowed)."""
+        return {
+            "symbol_id": self.id,
+            "qualname": self.qualname,
+            "module": self.module,
+            "kind": self.kind,
+        }
+
+
+@dataclass
 class Citation:
     """A reference to a Symbol that supported part of an answer."""
 
-    symbol_id: str       # The full_id of the Symbol
-    qualname: str        # Display name, e.g. "DataFrame.merge"
-    module: str          # Module path
-    snippet: str         # The chunk text that was retrieved
+    symbol_id: str  # The full_id of the Symbol
+    qualname: str  # Display name, e.g. "DataFrame.merge"
+    module: str  # Module path
+    snippet: str  # The chunk text that was retrieved
 
 
 @dataclass

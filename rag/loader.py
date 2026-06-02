@@ -14,7 +14,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import pkgutil
-from typing import Iterator
+from collections.abc import Iterator
 
 from rag.types import Symbol
 
@@ -33,9 +33,16 @@ class PythonDocsLoader:
 
     # Skip these specific module names — they're rarely useful for users
     SKIP_MODULE_PARTS = {
-        "tests", "_internal", "_vendor", "__pycache__",
-        "f2py", "__main__", "conftest", "setup", "_build_utils"
-        }
+        "tests",
+        "_internal",
+        "_vendor",
+        "__pycache__",
+        "f2py",
+        "__main__",
+        "conftest",
+        "setup",
+        "_build_utils",
+    }
 
     def load_library(self, library_name: str) -> Iterator[Symbol]:
         """Yield every public Symbol in a library and its submodules.
