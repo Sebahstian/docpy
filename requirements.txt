@@ -1,0 +1,8 @@
+# Streamlit Community Cloud reads this file to install dependencies.
+# It mirrors pyproject.toml. `requests` is listed explicitly so the default
+# demo library is always importable/indexable on the server.
+chromadb>=1.5.9
+google-generativeai>=0.8.6
+onnxruntime<=1.19.2
+streamlit>=1.57.0
+requests>=2.31.0
