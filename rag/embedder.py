@@ -20,7 +20,7 @@ class GeminiEmbedder:
     def __init__(
         self,
         client,
-        model: str = "models/text-embedding-004",
+        model: str = "text-embedding-004",
         batch_size: int = 20,
     ) -> None:
         self.client = client
