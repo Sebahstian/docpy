@@ -1,47 +1,79 @@
 """Offline wiring test for RAGPipeline.
 
-We monkeypatch every Gemini network call (configure, embed_content, the chat
-model) and point ChromaDB at a tmp dir, so the whole index -> ask flow runs
-without an API key or network access.
+We monkeypatch every Gemini network call (Client creation, embed_content, the
+chat model) and point ChromaDB at a tmp dir, so the whole index -> ask flow
+runs without an API key or network access.
 """
 
 from __future__ import annotations
 
-import google.generativeai as genai
+from google import genai
 import pytest
 
 from rag.pipeline import RAGPipeline
 from rag.types import Symbol
 
 
+class _FakePart:
+    def __init__(self, text: str = ""):
+        self.text = text
+
+
+class _FakeContent:
+    def __init__(self, parts=None):
+        self.parts = parts or []
+
+
+class _FakeEmbedding:
+    values: list[float]
+
+    def __init__(self, values: list[float]):
+        self.values = values
+
+
+class _FakeEmbedResponse:
+    embeddings: list[_FakeEmbedding]
+
+    def __init__(self, embeddings: list[_FakeEmbedding]):
+        self.embeddings = embeddings
+
+
 class _FakeResponse:
     text = "requests.get sends a GET request."
 
 
-class _FakeModel:
+class _FakeModels:
     def __init__(self, *args, **kwargs):
         pass
 
-    def generate_content(self, prompt):
+    def embed_content(self, model, contents, embed_config=None):
+        """Deterministic 3-dim vectors from text length and char count."""
+
+        def vec(text: str) -> list[float]:
+            return [float(len(text)), float(text.count("e")), 1.0]
+
+        # Contents is a list of genai.Content objects; extract text from parts
+        embeddings = []
+        for content in contents:
+            text = content.parts[0].text if content.parts else ""
+            embeddings.append(_FakeEmbedding(vec(text)))
+        return _FakeEmbedResponse(embeddings)
+
+    def generate_content(self, model, contents):
         return _FakeResponse()
 
 
-def _fake_embed_content(model, content, task_type=None):
-    """Deterministic 3-dim vectors; handles both batch and single inputs."""
-
-    def vec(text: str) -> list[float]:
-        return [float(len(text)), float(text.count("e")), 1.0]
-
-    if isinstance(content, list):
-        return {"embedding": [vec(t) for t in content]}
-    return {"embedding": vec(content)}
+class _FakeClient:
+    def __init__(self, *args, **kwargs):
+        self.models = _FakeModels()
 
 
 @pytest.fixture
 def pipeline(monkeypatch, tmp_path):
-    monkeypatch.setattr(genai, "configure", lambda **kwargs: None)
-    monkeypatch.setattr(genai, "embed_content", _fake_embed_content)
-    monkeypatch.setattr(genai, "GenerativeModel", _FakeModel)
+    monkeypatch.setattr(genai, "Client", _FakeClient)
+    monkeypatch.setattr(genai, "Content", _FakeContent)
+    monkeypatch.setattr(genai, "Part", _FakePart)
+    monkeypatch.setattr(genai, "EmbedConfig", lambda task_type: None)
 
     pipe = RAGPipeline(api_key="fake-key", persist_path=str(tmp_path / "chroma"))
 

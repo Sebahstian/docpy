@@ -3,15 +3,13 @@
 Embeddings turn text into vectors so we can do semantic search. Gemini wants a
 different `task_type` depending on whether we're embedding stored documents or a
 search query — using the right one materially improves retrieval quality.
-
-Assumes genai.configure(api_key=...) was already called (the pipeline does it).
 """
 
 from __future__ import annotations
 
 import time
 
-import google.generativeai as genai
+from google import genai
 
 
 class GeminiEmbedder:
@@ -19,9 +17,11 @@ class GeminiEmbedder:
 
     def __init__(
         self,
-        model: str = "models/text-embedding-004",
+        client: genai.Client,
+        model: str = "gemini-embedding-001",
         batch_size: int = 20,
     ) -> None:
+        self.client = client
         self.model = model
         self.batch_size = batch_size
 
@@ -34,23 +34,21 @@ class GeminiEmbedder:
         vectors: list[list[float]] = []
         for start in range(0, len(texts), self.batch_size):
             batch = texts[start : start + self.batch_size]
-            result = genai.embed_content(
+            result = self.client.models.embed_content(
                 model=self.model,
-                content=batch,
-                task_type="retrieval_document",
+                contents=[genai.Content(parts=[genai.Part(text=t)]) for t in batch],
+                embed_config=genai.EmbedConfig(task_type="RETRIEVAL_DOCUMENT"),
             )
-            # For a list input, result["embedding"] is a list of vectors.
-            vectors.extend(result["embedding"])
+            vectors.extend([e.values for e in result.embeddings])
             if start + self.batch_size < len(texts):
                 time.sleep(0.1)  # be gentle on the free-tier rate limit
         return vectors
 
     def embed_query(self, text: str) -> list[float]:
         """Embed a single search query (task_type=retrieval_query)."""
-        result = genai.embed_content(
+        result = self.client.models.embed_content(
             model=self.model,
-            content=text,
-            task_type="retrieval_query",
+            contents=[genai.Content(parts=[genai.Part(text=text)])],
+            embed_config=genai.EmbedConfig(task_type="RETRIEVAL_QUERY"),
         )
-        # For a single string input, result["embedding"] is one vector.
-        return result["embedding"]
+        return result.embeddings[0].values
