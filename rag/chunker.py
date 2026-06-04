@@ -15,8 +15,7 @@ from rag.types import Chunk, Symbol
 class SymbolChunker:
     """Formats a Symbol into a single Chunk of text + metadata."""
 
-    # Source code can be huge (whole classes). Truncate so we don't blow up
-    # embedding token limits or stuff the prompt with thousands of lines.
+    MAX_DOCSTRING_CHARS = 1500
     MAX_SOURCE_CHARS = 2000
 
     def chunk(self, symbol: Symbol) -> Chunk:
@@ -50,7 +49,10 @@ class SymbolChunker:
             parts.append(f"Signature: {symbol.qualname}{symbol.signature}")
 
         if symbol.docstring:
-            parts.append(f"Description:\n{symbol.docstring}")
+            doc = symbol.docstring
+            if len(doc) > self.MAX_DOCSTRING_CHARS:
+                doc = doc[: self.MAX_DOCSTRING_CHARS] + "\n# ... (truncated)"
+            parts.append(f"Description:\n{doc}")
 
         if symbol.source:
             source = symbol.source

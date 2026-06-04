@@ -29,7 +29,7 @@ class VectorStore:
         """Create (or open) the collection we store everything in.
 
         embedding_function=None: we add our own vectors and never let Chroma
-        embed. cosine space matches text-embedding-004's recommended metric.
+        embed. cosine distance works well for Gemini embedding models.
         """
         return self._client.get_or_create_collection(
             name=self.collection_name,
@@ -45,7 +45,7 @@ class VectorStore:
         """
         if not chunks:
             return
-        self._collection.add(
+        self._collection.upsert(
             ids=[c.id for c in chunks],
             embeddings=embeddings,
             documents=[c.text for c in chunks],

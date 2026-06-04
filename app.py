@@ -15,9 +15,12 @@ st.set_page_config(page_title="DocPy", page_icon="📚")
 
 
 @st.cache_resource
-def get_pipeline() -> RAGPipeline:
+def get_pipeline() -> RAGPipeline | None:
     """Create the pipeline once and reuse it across reruns."""
-    api_key = st.secrets["GEMINI_API_KEY"]
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        return None
     return RAGPipeline(api_key=api_key)
 
 
@@ -36,6 +39,13 @@ def main() -> None:
     st.caption("RAG-powered Q&A for Python library documentation")
 
     pipeline = get_pipeline()
+    if pipeline is None:
+        st.error("GEMINI_API_KEY is not configured.")
+        st.info(
+            "Go to your Streamlit Cloud dashboard → Settings → Secrets and add:\n\n"
+            '```toml\nGEMINI_API_KEY = "your-key-from-aistudio.google.com"\n```'
+        )
+        st.stop()
 
     # --- Sidebar: index a library -------------------------------------
     with st.sidebar:
