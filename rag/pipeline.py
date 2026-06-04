@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-import google.generativeai as genai
+from google import genai
 
 from rag.chunker import SymbolChunker
 from rag.embedder import GeminiEmbedder
@@ -27,12 +27,12 @@ class RAGPipeline:
         persist_path: str = "chroma_db",
         chat_model: str = "gemini-2.0-flash",
     ) -> None:
-        genai.configure(api_key=api_key)  # one-time global config for genai
+        self._client = genai.Client(api_key=api_key)
+        self._chat_model = chat_model
         self.loader = PythonDocsLoader()
         self.chunker = SymbolChunker()
-        self.embedder = GeminiEmbedder()
+        self.embedder = GeminiEmbedder(client=self._client)
         self.store = VectorStore(persist_path=persist_path)
-        self.model = genai.GenerativeModel(chat_model)
 
     def is_indexed(self) -> bool:
         """True once at least one library has been indexed into the store."""
@@ -84,7 +84,10 @@ class RAGPipeline:
             )
 
         prompt = self._build_prompt(question, hits)
-        response = self.model.generate_content(prompt)
+        response = self._client.models.generate_content(
+            model=self._chat_model,
+            contents=prompt,
+        )
 
         citations = [
             Citation(

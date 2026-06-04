@@ -1,14 +1,13 @@
 """Offline wiring test for RAGPipeline.
 
-We monkeypatch every Gemini network call (configure, embed_content, the chat
-model) and point ChromaDB at a tmp dir, so the whole index -> ask flow runs
-without an API key or network access.
+We monkeypatch genai.Client to return a fake client so the whole index -> ask
+flow runs without an API key or network access.
 """
 
 from __future__ import annotations
 
-import google.generativeai as genai
 import pytest
+from google import genai
 
 from rag.pipeline import RAGPipeline
 from rag.types import Symbol
@@ -18,30 +17,40 @@ class _FakeResponse:
     text = "requests.get sends a GET request."
 
 
-class _FakeModel:
-    def __init__(self, *args, **kwargs):
-        pass
+class _FakeEmbedding:
+    def __init__(self, values: list[float]) -> None:
+        self.values = values
 
-    def generate_content(self, prompt):
+
+class _FakeEmbedResult:
+    def __init__(self, embeddings: list[_FakeEmbedding]) -> None:
+        self.embeddings = embeddings
+
+
+def _vec(text: str) -> list[float]:
+    return [float(len(text)), float(text.count("e")), 1.0]
+
+
+class _FakeModels:
+    @staticmethod
+    def embed_content(model, contents, config=None):
+        """Deterministic 3-dim vectors; handles both batch and single inputs."""
+        if isinstance(contents, list):
+            return _FakeEmbedResult([_FakeEmbedding(_vec(t)) for t in contents])
+        return _FakeEmbedResult([_FakeEmbedding(_vec(contents))])
+
+    @staticmethod
+    def generate_content(model, contents):
         return _FakeResponse()
 
 
-def _fake_embed_content(model, content, task_type=None):
-    """Deterministic 3-dim vectors; handles both batch and single inputs."""
-
-    def vec(text: str) -> list[float]:
-        return [float(len(text)), float(text.count("e")), 1.0]
-
-    if isinstance(content, list):
-        return {"embedding": [vec(t) for t in content]}
-    return {"embedding": vec(content)}
+class _FakeClient:
+    models = _FakeModels()
 
 
 @pytest.fixture
 def pipeline(monkeypatch, tmp_path):
-    monkeypatch.setattr(genai, "configure", lambda **kwargs: None)
-    monkeypatch.setattr(genai, "embed_content", _fake_embed_content)
-    monkeypatch.setattr(genai, "GenerativeModel", _FakeModel)
+    monkeypatch.setattr(genai, "Client", lambda **kwargs: _FakeClient())
 
     pipe = RAGPipeline(api_key="fake-key", persist_path=str(tmp_path / "chroma"))
 
