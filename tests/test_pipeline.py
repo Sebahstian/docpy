@@ -1,7 +1,8 @@
 """Offline wiring test for RAGPipeline.
 
-We monkeypatch genai.Client to return a fake client so the whole index -> ask
-flow runs without an API key or network access.
+Embeddings use a monkeypatched DefaultEmbeddingFunction (no ONNX download).
+The Gemini chat client is also faked so the whole index -> ask flow runs
+without any API key or network access.
 """
 
 from __future__ import annotations
@@ -9,36 +10,27 @@ from __future__ import annotations
 import pytest
 from google import genai
 
+import rag.embedder as embedder_module
 from rag.pipeline import RAGPipeline
 from rag.types import Symbol
-
-
-class _FakeResponse:
-    text = "requests.get sends a GET request."
-
-
-class _FakeEmbedding:
-    def __init__(self, values: list[float]) -> None:
-        self.values = values
-
-
-class _FakeEmbedResult:
-    def __init__(self, embeddings: list[_FakeEmbedding]) -> None:
-        self.embeddings = embeddings
 
 
 def _vec(text: str) -> list[float]:
     return [float(len(text)), float(text.count("e")), 1.0]
 
 
-class _FakeModels:
-    @staticmethod
-    def embed_content(model, contents, config=None):
-        """Deterministic 3-dim vectors; handles both batch and single inputs."""
-        if isinstance(contents, list):
-            return _FakeEmbedResult([_FakeEmbedding(_vec(t)) for t in contents])
-        return _FakeEmbedResult([_FakeEmbedding(_vec(contents))])
+class _FakeEmbeddingFunction:
+    """Deterministic 3-dim vectors; no ONNX model required."""
 
+    def __call__(self, texts):
+        return [_vec(t) for t in texts]
+
+
+class _FakeResponse:
+    text = "requests.get sends a GET request."
+
+
+class _FakeModels:
     @staticmethod
     def generate_content(model, contents):
         return _FakeResponse()
@@ -50,6 +42,9 @@ class _FakeClient:
 
 @pytest.fixture
 def pipeline(monkeypatch, tmp_path):
+    # Patch the local embedder so no ONNX model is downloaded.
+    monkeypatch.setattr(embedder_module, "DefaultEmbeddingFunction", _FakeEmbeddingFunction)
+    # Patch the Gemini client used for chat generation.
     monkeypatch.setattr(genai, "Client", lambda **kwargs: _FakeClient())
 
     pipe = RAGPipeline(api_key="fake-key", persist_path=str(tmp_path / "chroma"))

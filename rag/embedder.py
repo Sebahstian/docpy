@@ -1,62 +1,27 @@
-"""Gemini embeddings wrapper for DocPy.
+"""Local ONNX embeddings wrapper for DocPy.
 
-Embeddings turn text into vectors so we can do semantic search. Gemini wants a
-different `task_type` depending on whether we're embedding stored documents or a
-search query — using the right one materially improves retrieval quality.
+Uses ChromaDB's bundled DefaultEmbeddingFunction (all-MiniLM-L6-v2 via ONNX)
+so indexing requires no API key and hits no rate limits. The first call
+downloads the ~23 MB ONNX model to a local cache; subsequent calls are instant.
 
-Assumes a google.genai.Client was created and passed in (the pipeline does it).
+Produces 384-dim vectors. The Gemini API is only used for generating answers.
 """
 
 from __future__ import annotations
 
-import time
-
-from google.genai import types
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
 
-class GeminiEmbedder:
-    """Embeds text via the Gemini embeddings API."""
+class LocalEmbedder:
+    """Embeds text locally via the all-MiniLM-L6-v2 ONNX model."""
 
-    def __init__(
-        self,
-        client,
-        model: str = "gemini-embedding-001",
-        batch_size: int = 20,
-        output_dim: int = 768,
-    ) -> None:
-        self.client = client
-        self.model = model
-        self.batch_size = batch_size
-        self.output_dim = output_dim
+    def __init__(self) -> None:
+        self._ef = DefaultEmbeddingFunction()
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        """Embed many documents for storage (task_type=RETRIEVAL_DOCUMENT).
-
-        Batched to stay within request limits, with a tiny sleep between
-        batches as a crude guard against free-tier rate limits.
-        """
-        vectors: list[list[float]] = []
-        for start in range(0, len(texts), self.batch_size):
-            batch = texts[start : start + self.batch_size]
-            result = self.client.models.embed_content(
-                model=self.model,
-                contents=batch,
-                config=types.EmbedContentConfig(
-                    task_type="RETRIEVAL_DOCUMENT", output_dimensionality=self.output_dim
-                ),
-            )
-            vectors.extend(e.values for e in result.embeddings)
-            if start + self.batch_size < len(texts):
-                time.sleep(0.1)  # be gentle on the free-tier rate limit
-        return vectors
+        """Embed many documents for storage."""
+        return list(self._ef(texts))
 
     def embed_query(self, text: str) -> list[float]:
-        """Embed a single search query (task_type=RETRIEVAL_QUERY)."""
-        result = self.client.models.embed_content(
-            model=self.model,
-            contents=text,
-            config=types.EmbedContentConfig(
-                task_type="RETRIEVAL_QUERY", output_dimensionality=self.output_dim
-            ),
-        )
-        return result.embeddings[0].values
+        """Embed a single search query."""
+        return self._ef([text])[0]

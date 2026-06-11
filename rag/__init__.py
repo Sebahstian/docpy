@@ -2,7 +2,7 @@
 
 from rag.audit import AuditReport, audit_library
 from rag.chunker import SymbolChunker
-from rag.embedder import GeminiEmbedder
+from rag.embedder import LocalEmbedder
 from rag.loader import PythonDocsLoader
 from rag.pipeline import RAGPipeline
 from rag.store import VectorStore
@@ -13,7 +13,7 @@ __all__ = [
     "AuditReport",
     "Chunk",
     "Citation",
-    "GeminiEmbedder",
+    "LocalEmbedder",
     "PythonDocsLoader",
     "RAGPipeline",
     "Symbol",

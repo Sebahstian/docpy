@@ -12,7 +12,7 @@ from collections.abc import Callable
 from google import genai
 
 from rag.chunker import SymbolChunker
-from rag.embedder import GeminiEmbedder
+from rag.embedder import LocalEmbedder
 from rag.loader import PythonDocsLoader
 from rag.store import VectorStore
 from rag.types import Answer, Citation
@@ -31,7 +31,7 @@ class RAGPipeline:
         self._chat_model = chat_model
         self.loader = PythonDocsLoader()
         self.chunker = SymbolChunker()
-        self.embedder = GeminiEmbedder(client=self._client)
+        self.embedder = LocalEmbedder()
         self.store = VectorStore(persist_path=persist_path)
 
     def is_indexed(self) -> bool:

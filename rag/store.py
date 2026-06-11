@@ -1,6 +1,6 @@
 """ChromaDB persistent vector store wrapper for DocPy.
 
-We bring our own embeddings (Gemini), so the collection is created with
+We bring our own embeddings (local ONNX), so the collection is created with
 embedding_function=None — Chroma stores/searches the vectors we give it and
 never tries to embed text itself (which also avoids pulling in its default
 ONNX model).
