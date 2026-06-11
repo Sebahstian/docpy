@@ -25,14 +25,14 @@ class RAGPipeline:
         self,
         api_key: str,
         persist_path: str = "chroma_db",
-        chat_model: str = "gemini-2.0-flash",
+        chat_model: str = "gemma-4-26b-a4b-it",
     ) -> None:
         self.client = genai.Client(api_key=api_key)
+        self.chat_model = chat_model
         self.loader = PythonDocsLoader()
         self.chunker = SymbolChunker()
         self.embedder = GeminiEmbedder(client=self.client)
         self.store = VectorStore(persist_path=persist_path)
-        self.chat_model = chat_model
 
     def is_indexed(self) -> bool:
         """True once at least one library has been indexed into the store."""
