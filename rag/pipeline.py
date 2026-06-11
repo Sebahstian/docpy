@@ -25,7 +25,7 @@ class RAGPipeline:
         self,
         api_key: str,
         persist_path: str = "chroma_db",
-        chat_model: str = "gemini-2.0-flash",
+        chat_model: str = "gemma-4-26b-a4b-it",
     ) -> None:
         self._client = genai.Client(api_key=api_key)
         self._chat_model = chat_model

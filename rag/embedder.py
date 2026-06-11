@@ -20,12 +20,14 @@ class GeminiEmbedder:
     def __init__(
         self,
         client,
-        model: str = "text-embedding-004",
+        model: str = "gemini-embedding-001",
         batch_size: int = 20,
+        output_dim: int = 768,
     ) -> None:
         self.client = client
         self.model = model
         self.batch_size = batch_size
+        self.output_dim = output_dim
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """Embed many documents for storage (task_type=RETRIEVAL_DOCUMENT).
@@ -39,7 +41,9 @@ class GeminiEmbedder:
             result = self.client.models.embed_content(
                 model=self.model,
                 contents=batch,
-                config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
+                config=types.EmbedContentConfig(
+                    task_type="RETRIEVAL_DOCUMENT", output_dimensionality=self.output_dim
+                ),
             )
             vectors.extend(e.values for e in result.embeddings)
             if start + self.batch_size < len(texts):
@@ -51,6 +55,8 @@ class GeminiEmbedder:
         result = self.client.models.embed_content(
             model=self.model,
             contents=text,
-            config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY"),
+            config=types.EmbedContentConfig(
+                task_type="RETRIEVAL_QUERY", output_dimensionality=self.output_dim
+            ),
         )
         return result.embeddings[0].values
